@@ -1,24 +1,47 @@
-from aiogram import types, Dispatcher, F
-from bot_data.keyboards import main_menu_kb
+from aiogram import Bot, types, Dispatcher, F
+from aiogram.filters import Command
+from bot_data.keyboards import get_start_keyboard
+from textwrap import dedent
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 
 async def start_handler(message: types.Message):
     await message.answer(
         "Привет! Я бот цветочного магазина 💐\nВыберите, что вас интересует:",
-        reply_markup=main_menu_kb
+        reply_markup=get_start_keyboard()
     )
 
-async def message_handler(message: types.Message):
-    text = message.text
 
-    if text == "💬 Консультация":
-        await message.answer("Наш менеджер скоро свяжется с вами 💬")
-    elif text == "🌸 Заказать букет под желание":
-        await message.answer("Расскажите, какой букет вы хотите 🌷")
-    elif text == "📷 Посмотреть коллекцию":
-        await message.answer("Вот наша коллекция: [ссылка или фото] 📸")
-    else:
-        await message.answer("Пожалуйста, выберите один из пунктов меню.")
+async def consultation_handler(callback: types.CallbackQuery, bot: Bot):
+    user = callback.from_user
+    print(user)
+    manager_chat_id = 1612767132  # Тут потом вписать id консультанта (пока указан мой)
+
+    await callback.message.answer("Наш менеджер скоро свяжется с вами 💬")
+    await callback.answer()
+
+    user_info = dedent(f"""\
+        Новая заявка на консультацию!
+        Имя: {user.full_name}
+        ID: {user.id}
+        Username: @{user.username}
+    """)
+
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📨 Ответить",
+        url=f"tg://user?id={user.id}" 
+    )
+
+    await bot.send_message(
+        chat_id=manager_chat_id,
+        text=user_info,
+        reply_markup=builder.as_markup()
+    )
+
 
 def register_handlers(dp: Dispatcher):
-    dp.message.register(start_handler, F.text == "/start")
-    dp.message.register(message_handler, F.text)
+    dp.message.register(start_handler, Command("start"))
+
+    dp.callback_query.register(consultation_handler, F.data == "consultation")
+
