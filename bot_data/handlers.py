@@ -1,5 +1,6 @@
 from aiogram import Bot, types, Dispatcher, F
 from aiogram.filters import Command
+from bot_admin.models import ConsultationRequest
 from bot_data.keyboards import (
     get_start_keyboard,
     get_consultation_keyboard,
@@ -49,6 +50,13 @@ async def contact_option(callback: types.CallbackQuery, bot: Bot):
     user = callback.from_user
 
     if callback.data == "in_chat":
+
+        await ConsultationRequest.objects.acreate(
+            full_name=user.full_name,
+            telegram_username=user.username,
+            phone_number="— через чат —"
+        )
+
         await notify_manager(bot, user, "💬 Чат")
         await callback.message.answer("Наш менеджер скоро свяжется с вами в чате 💬")
 
@@ -63,6 +71,13 @@ async def contact_option(callback: types.CallbackQuery, bot: Bot):
 
 async def handle_contact(message: types.Message, bot: Bot):
     if message.contact:
+
+        await ConsultationRequest.objects.acreate(
+            full_name=message.from_user.full_name,
+            telegram_username=message.from_user.username,
+            phone_number=message.contact.phone_number,
+        )
+
         await notify_manager(
             bot=bot,
             user=message.from_user,
