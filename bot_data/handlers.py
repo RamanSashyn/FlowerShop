@@ -46,9 +46,49 @@ async def order_bouquet(callback: types.CallbackQuery, bot: Bot):
     await callback.answer()
 
 
+# Для работы этой функции нужна модель букетов
+# async def view_collection(callback: types.CallbackQuery, start_index: int = 0):
+#     first_bouquet = bouquets[start_index]
+
+#     bouquet = dedent(f"""
+#     Название: {bouquet.name}
+#     Состав: {bouquet.flowers}
+#     Описание: {bouquet.description}
+#     Цена: {bouquet.price} руб.
+#     """)
+
+#     await callback.message.answer_photo(
+#         photo=bouquet.image_url,
+#         caption=caption,
+#         reply_markup=get_bouquet_keyboard(
+#             current_index=start_index + 1,
+#             total=len(bouquets)
+#         )
+#     )
+#     await callback.answer()
+
+
+# async def pagination_bouquets(callback: types.CallbackQuery):
+#     action, bouquet_id = callback.data.split("_")
+#     current_index = int(bouquet_id) - 1
+
+#     if action == "prev" and current_index > 0:
+#         new_index = current_index - 1
+#     elif action == "next" and current_index < len(bouquets) - 1:
+#         new_index = current_index + 1
+#     else:
+#         await callback.answer()
+#         return
+
+#     await callback.message.delete()
+#     await view_collection(callback.message, bouquets[new_index], new_index)
+#     await callback.answer()
+
+
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
 
     dp.callback_query.register(consultation_handler, F.data == "consultation")
+    # dp.callback_query.register(view_collection, F.data == "view_collection")
     dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
 
