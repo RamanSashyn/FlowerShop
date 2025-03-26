@@ -6,3 +6,5 @@ pytz==2025.1
 whitenoise==6.9.0
 python-dotenv==1.0.1
 gunicorn
+Pillow>=9.0
+
