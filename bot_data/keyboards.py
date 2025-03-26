@@ -1,4 +1,10 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    InlineKeyboardMarkup, 
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton
+)
+
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
 
@@ -18,6 +24,32 @@ def get_start_keyboard():
             callback_data="order_bouquet"
         )],
     ])
+
+
+def get_preferred_option():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📞 По телефону", 
+            callback_data="by_phone"
+        )],
+        [InlineKeyboardButton(
+            text="💬 В чате",
+            callback_data="in_chat"
+        )]
+    ])
+
+
+def get_phone_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(
+                text="Отправить номер телефона",
+                request_contact=True
+            )]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
 
 
 def get_consultation_keyboard(user_id):
