@@ -21,6 +21,29 @@ async def set_menu_commands(bot: Bot):
     ])
 
 
+@dispatcher.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer(dedent("""\
+                Закажите доставку праздничного букета 💐
+                собранного специально для ваших любимых,
+                родных и коллег ❤️.
+                Наш букет со смыслом станет главным
+                подарком на вашем празднике 😊
+    """))
+    inline_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Консультация", callback_data="btn1")],
+        [InlineKeyboardButton(
+            text="Посмотреть коллекцию",
+            callback_data="btn2"
+        )],
+        [InlineKeyboardButton(
+            text="Заказать букет под желание",
+            callback_data="btn2"
+        )],
+    ])
+    await message.answer("Выберите действие:", reply_markup=inline_kb)
+
+
 async def main():
     load_dotenv()
 
