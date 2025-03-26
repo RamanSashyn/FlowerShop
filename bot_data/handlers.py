@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from bot_data.keyboards import (
     get_start_keyboard,
     get_consultation_keyboard,
+    get_theme_bouquet
     )
 from textwrap import dedent
 
@@ -36,7 +37,18 @@ async def consultation_handler(callback: types.CallbackQuery, bot: Bot):
     )
 
 
+async def order_bouquet(callback: types.CallbackQuery, bot: Bot):
+
+    await callback.message.edit_text(
+        "Выберите повод для букета:",
+        reply_markup=get_theme_bouquet()
+    )
+    await callback.answer()
+
+
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
 
     dp.callback_query.register(consultation_handler, F.data == "consultation")
+    dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
+
