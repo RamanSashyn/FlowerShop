@@ -70,3 +70,31 @@ def get_bouquet_keyboard(bouquet_id: int, total: int):
 
     builder.adjust(2)
     return builder.as_markup()
+
+
+def get_price_keyboards():
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text="~500 руб.",
+            callback_data="500"
+        ),
+        types.InlineKeyboardButton(
+            text="~1000 руб.",
+            callback_data="1000"
+        )
+    )
+    builder.row(
+        types.InlineKeyboardButton(text="~2000 руб.", callback_data="2000"),
+        types.InlineKeyboardButton(
+            text="Больше.",
+            callback_data="more"
+        )
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text="Не важно",
+            callback_data="no_matter"
+        )
+    )
+    return builder.as_markup()

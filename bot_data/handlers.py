@@ -84,6 +84,13 @@ async def order_bouquet(callback: types.CallbackQuery, bot: Bot):
 #     await view_collection(callback.message, bouquets[new_index], new_index)
 #     await callback.answer()
 
+async def get_price(callback: types.CallbackQuery, bot: Bot):
+    await callback.message.edit_text(
+        "На какую сумму рассчитываете?",
+        reply_markup=get_theme_bouquet()
+    )
+    await callback.answer()
+
 
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
@@ -91,4 +98,10 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(consultation_handler, F.data == "consultation")
     # dp.callback_query.register(view_collection, F.data == "view_collection")
     dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
-
+    dp.callback_query.register(get_price, F.data in [
+        "birthday",
+        "wedding",
+        "school",
+        "no_reson",
+        "custom"
+    ])
