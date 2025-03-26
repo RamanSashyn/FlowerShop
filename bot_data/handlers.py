@@ -1,8 +1,10 @@
 from aiogram import Bot, types, Dispatcher, F
 from aiogram.filters import Command
-from bot_data.keyboards import get_start_keyboard
+from bot_data.keyboards import (
+    get_start_keyboard,
+    get_consultation_keyboard,
+    )
 from textwrap import dedent
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 async def start_handler(message: types.Message):
@@ -27,16 +29,10 @@ async def consultation_handler(callback: types.CallbackQuery, bot: Bot):
         Username: @{user.username}
     """)
 
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="📨 Ответить",
-        url=f"tg://user?id={user.id}" 
-    )
-
     await bot.send_message(
         chat_id=manager_chat_id,
         text=user_info,
-        reply_markup=builder.as_markup()
+        reply_markup=get_consultation_keyboard(user.id)
     )
 
 
@@ -44,4 +40,3 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
 
     dp.callback_query.register(consultation_handler, F.data == "consultation")
-
