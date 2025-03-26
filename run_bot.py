@@ -1,20 +1,39 @@
 import asyncio
+import os
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand
 from bot_data.handlers import register_handlers
+from dotenv import load_dotenv
+from textwrap import dedent
 
 
-BOT_TOKEN = "7946435543:AAEkCNi2cyx6bD7lcPFdZWHzj6wthYQarcM"
+load_dotenv()
+bot = Bot(token=os.environ['TG_BOT_TOKEN'])
+dispatcher = Dispatcher()
+
+
+async def set_menu_commands(bot: Bot):
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Запустить бота")
+    ])
+
 
 async def main():
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
 
-    register_handlers(dp)
+    if not bot.token:
+        print(dedent("""\
+            Ошибка: Не указан TG_BOT_TOKEN.
+            Убедитесь, что он задан в переменных окружения.
+        """))
+        return
+
+    await set_menu_commands(bot)
+
+    register_handlers(dispatcher)
 
     await bot.delete_webhook(drop_pending_updates=True)
     print("Бот запущен!")
-    await dp.start_polling(bot)
+    await dispatcher.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-
