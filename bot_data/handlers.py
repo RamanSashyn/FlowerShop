@@ -1,59 +1,107 @@
-from aiogram import types, Dispatcher, F, Bot
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from bot_data.keyboards import main_menu_kb
-from bot_data.notifications import send_consultation_to_florist
-
-
-class ConsultationStates(StatesGroup):
-    waiting_for_phone = State()
+from aiogram import Bot, types, Dispatcher, F
+from aiogram.filters import Command
+from bot_data.keyboards import (
+    get_start_keyboard,
+    get_consultation_keyboard,
+    get_theme_bouquet
+    )
+from textwrap import dedent
 
 
 async def start_handler(message: types.Message):
     await message.answer(
         "Привет! Я бот цветочного магазина 💐\nВыберите, что вас интересует:",
-        reply_markup=main_menu_kb
+        reply_markup=get_start_keyboard()
     )
 
-async def message_handler(message: types.Message, state: FSMContext):
-    text = message.text
 
-    if text == "💬 Консультация":
-        await message.answer("Укажите номер телефона, и наш флорист перезвонит вам в течение 20 минут 📞")
-        await state.set_state(ConsultationStates.waiting_for_phone)
+async def consultation_handler(callback: types.CallbackQuery, bot: Bot):
+    user = callback.from_user
+    print(user)
+    manager_chat_id = 8085944673  # Тут потом вписать id консультанта (пока указан мой)
 
-    elif text == "🌸 Заказать букет под желание":
-        await message.answer("Расскажите, какой букет вы хотите 🌷")
+    await callback.message.answer("Наш менеджер скоро свяжется с вами 💬")
+    await callback.answer()
 
-    elif text == "📷 Посмотреть коллекцию":
-        await message.answer("Вот наша коллекция: [ссылка или фото] 📸")
+    user_info = dedent(f"""\
+        Новая заявка на консультацию!
+        Имя: {user.full_name}
+        ID: {user.id}
+        Username: @{user.username}
+    """)
 
-    else:
-        await message.answer("Пожалуйста, выберите один из пунктов меню.")
-
-
-async def phone_input_handler(message: types.Message, state: FSMContext, bot: Bot):
-    user = message.from_user
-    phone = message.text.strip()
-
-    # Сообщение пользователю
-    await message.answer(
-        "Флорист скоро свяжется с вами. А пока можете присмотреть что-нибудь из готовой коллекции 📸"
+    await bot.send_message(
+        chat_id=manager_chat_id,
+        text=user_info,
+        reply_markup=get_consultation_keyboard(user.id)
     )
 
-    await message.answer_photo(
-        photo="https://images.app.goo.gl/UFR1SwyMezC35GrF6",  # пример фото
-        caption="💐 Букет «Нежность» — 2000₽",
-        reply_markup=main_menu_kb
+
+async def order_bouquet(callback: types.CallbackQuery, bot: Bot):
+
+    await callback.message.edit_text(
+        "Выберите повод для букета:",
+        reply_markup=get_theme_bouquet()
     )
+    await callback.answer()
 
-    # Уведомление в группу
-    await send_consultation_to_florist(bot, user, phone)
 
-    await state.clear()
+# Для работы этой функции нужна модель букетов
+# async def view_collection(callback: types.CallbackQuery, start_index: int = 0):
+#     first_bouquet = bouquets[start_index]
+
+#     bouquet = dedent(f"""
+#     Название: {bouquet.name}
+#     Состав: {bouquet.flowers}
+#     Описание: {bouquet.description}
+#     Цена: {bouquet.price} руб.
+#     """)
+
+#     await callback.message.answer_photo(
+#         photo=bouquet.image_url,
+#         caption=caption,
+#         reply_markup=get_bouquet_keyboard(
+#             current_index=start_index + 1,
+#             total=len(bouquets)
+#         )
+#     )
+#     await callback.answer()
+
+
+# async def pagination_bouquets(callback: types.CallbackQuery):
+#     action, bouquet_id = callback.data.split("_")
+#     current_index = int(bouquet_id) - 1
+
+#     if action == "prev" and current_index > 0:
+#         new_index = current_index - 1
+#     elif action == "next" and current_index < len(bouquets) - 1:
+#         new_index = current_index + 1
+#     else:
+#         await callback.answer()
+#         return
+
+#     await callback.message.delete()
+#     await view_collection(callback.message, bouquets[new_index], new_index)
+#     await callback.answer()
+
+async def get_price(callback: types.CallbackQuery, bot: Bot):
+    await callback.message.edit_text(
+        "На какую сумму рассчитываете?",
+        reply_markup=get_theme_bouquet()
+    )
+    await callback.answer()
 
 
 def register_handlers(dp: Dispatcher):
-    dp.message.register(phone_input_handler, ConsultationStates.waiting_for_phone)
-    dp.message.register(start_handler, F.text == "/start")
-    dp.message.register(message_handler, F.text)
+    dp.message.register(start_handler, Command("start"))
+
+    dp.callback_query.register(consultation_handler, F.data == "consultation")
+    # dp.callback_query.register(view_collection, F.data == "view_collection")
+    dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
+    dp.callback_query.register(get_price, F.data in [
+        "birthday",
+        "wedding",
+        "school",
+        "no_reson",
+        "custom"
+    ])
