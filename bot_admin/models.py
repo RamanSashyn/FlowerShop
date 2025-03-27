@@ -34,3 +34,13 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Заказ от {self.customer_name} ({self.created_at.date()})"
+
+
+class ConsultationRequest(models.Model):
+    full_name = models.CharField(max_length=100, verbose_name="Имя клиента")
+    telegram_username = models.CharField(max_length=100, blank=True, null=True, verbose_name="Username Telegram")
+    phone_number = models.CharField(max_length=30, verbose_name="Номер телефона", blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время запроса")
+
+    def __str__(self):
+        return f"{self.full_name} ({self.phone_number})"
