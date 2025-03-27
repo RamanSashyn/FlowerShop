@@ -1,13 +1,19 @@
 import asyncio
 import os
+import django
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
-from bot_data.handlers import register_handlers
+
 from dotenv import load_dotenv
 from textwrap import dedent
 
 
 load_dotenv()
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FlowerShop.settings')
+django.setup()
+from bot_data.handlers import register_handlers
+
 bot = Bot(token=os.environ['TG_BOT_TOKEN'])
 dispatcher = Dispatcher()
 

@@ -89,18 +89,22 @@ def get_theme_bouquet():
     return builder.as_markup()
 
 
-def get_bouquet_keyboard(bouquet_id: int, total: int):
+def get_bouquet_keyboard(current_index: int, total: int):
     builder = InlineKeyboardBuilder()
 
-    if bouquet_id > 1:
-        builder.button(text="⬅️ Назад", callback_data=f"prev_{bouquet_id}")
+    builder.button(
+        text="◀️ Назад",
+        callback_data=f"prev_{current_index}"
+    )
 
-    builder.button(text="🛒 Заказать", callback_data=f"order_{bouquet_id}")
+    builder.button(text="🛒 Заказать", callback_data=f"order_{current_index}")
 
-    if bouquet_id < total:
-        builder.button(text="Вперёд ➡️", callback_data=f"next_{bouquet_id}")
+    builder.button(
+        text="Вперед ▶️",
+        callback_data=f"next_{current_index}"
+    )
 
-    builder.adjust(2)
+    builder.adjust(3)
     return builder.as_markup()
 
 

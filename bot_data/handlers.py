@@ -5,9 +5,11 @@ from bot_data.keyboards import (
     get_consultation_keyboard,
     get_theme_bouquet,
     get_preferred_option,
-    get_phone_keyboard
+    get_phone_keyboard,
+    get_bouquet_keyboard,
     )
 from textwrap import dedent
+from bot_admin.models import Bouquet
 
 
 async def start_handler(message: types.Message):
@@ -87,43 +89,44 @@ async def order_bouquet(callback: types.CallbackQuery, bot: Bot):
     await callback.answer()
 
 
-# Для работы этой функции нужна модель букетов
-# async def view_collection(callback: types.CallbackQuery, start_index: int = 0):
-#     first_bouquet = bouquets[start_index]
+async def view_collection(callback: types.CallbackQuery, start_index: int = 0):
+    bouquets = [b async for b in Bouquet.objects.all()]
+    current_bouquet = bouquets[start_index]
 
-#     bouquet = dedent(f"""
-#     Название: {bouquet.name}
-#     Состав: {bouquet.flowers}
-#     Описание: {bouquet.description}
-#     Цена: {bouquet.price} руб.
-#     """)
+    caption = dedent(f"""
+    Название: {current_bouquet.name}
+    Состав: {current_bouquet.flowers}
+    Описание: {current_bouquet.description}
+    Цена: {current_bouquet.price} руб.
+    """)
 
-#     await callback.message.answer_photo(
-#         photo=bouquet.image_url,
-#         caption=caption,
-#         reply_markup=get_bouquet_keyboard(
-#             current_index=start_index + 1,
-#             total=len(bouquets)
-#         )
-#     )
-#     await callback.answer()
+    image_url = types.FSInputFile(current_bouquet.image.path)
+
+    await callback.message.answer_photo(
+        photo=image_url,
+        caption=caption,
+        reply_markup=get_bouquet_keyboard(
+            current_index=start_index + 1,
+            total=len(bouquets)
+        )
+    )
+    await callback.answer()
 
 
-# async def pagination_bouquets(callback: types.CallbackQuery):
-#     action, bouquet_id = callback.data.split("_")
-#     current_index = int(bouquet_id) - 1
+async def pagination_bouquets(callback: types.CallbackQuery):
+    action, bouquet_id = callback.data.split("_")
+    current_index = int(bouquet_id)
+    total = await Bouquet.objects.acount()
 
-#     if action == "prev" and current_index > 0:
-#         new_index = current_index - 1
-#     elif action == "next" and current_index < len(bouquets) - 1:
-#         new_index = current_index + 1
-#     else:
-#         await callback.answer()
-#         return
+    if action == "prev":
+        new_index = current_index - 1 if current_index > 1 else total
+    elif action == "next":
+        new_index = current_index + 1 if current_index < total else 1
 
-#     await callback.message.delete()
-#     await view_collection(callback.message, bouquets[new_index], new_index)
-#     await callback.answer()
+    await callback.message.delete()
+    await view_collection(callback, new_index - 1)
+    await callback.answer()
+
 
 async def get_price(callback: types.CallbackQuery, bot: Bot):
     await callback.message.edit_text(
@@ -142,7 +145,7 @@ def register_handlers(dp: Dispatcher):
         "in_chat",
         "by_phone"
     ]))
-    # dp.callback_query.register(view_collection, F.data == "view_collection")
+    dp.callback_query.register(view_collection, F.data == "view_collection")
     dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
     dp.callback_query.register(get_price, F.data.in_([
         "birthday",
@@ -151,3 +154,5 @@ def register_handlers(dp: Dispatcher):
         "no_reson",
         "custom"
     ]))
+    dp.callback_query.register(pagination_bouquets, F.data.startswith("next_"))
+    dp.callback_query.register(pagination_bouquets, F.data.startswith("prev_"))
