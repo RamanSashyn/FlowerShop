@@ -1,6 +1,6 @@
 from aiogram import Bot, types, Dispatcher, F
 from aiogram.filters import Command
-from bot_admin.models import ConsultationRequest
+from bot_admin.models import ConsultationRequest, Bouquet, Order
 from bot_data.keyboards import (
     get_start_keyboard,
     get_consultation_keyboard,
@@ -10,7 +10,9 @@ from bot_data.keyboards import (
     get_bouquet_keyboard,
     )
 from textwrap import dedent
-from bot_admin.models import Bouquet
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from datetime import datetime, date
 
 
 async def start_handler(message: types.Message):
@@ -121,6 +123,7 @@ async def view_collection(callback: types.CallbackQuery, start_index: int = 0):
         photo=image_url,
         caption=caption,
         reply_markup=get_bouquet_keyboard(
+            bouquet_id=current_bouquet.id,
             current_index=start_index + 1,
             total=len(bouquets)
         )
@@ -151,6 +154,80 @@ async def get_price(callback: types.CallbackQuery, bot: Bot):
     await callback.answer()
 
 
+class OrderForm(StatesGroup):
+    customer_name = State()
+    address = State()
+    delivery_date = State()
+    delivery_time = State()
+    phone = State()
+
+
+async def start_order(callback: types.CallbackQuery, state: FSMContext):
+    bouquet_id = int(callback.data.split("_")[1])
+    await state.update_data(bouquet_id=bouquet_id)
+    await callback.message.answer("Введите ваше имя:")
+    await state.set_state(OrderForm.customer_name)
+    await callback.answer()
+
+
+async def get_customer_name(message: types.Message, state: FSMContext):
+    await state.update_data(customer_name=message.text)
+    await message.answer("Введите адрес доставки:")
+    await state.set_state(OrderForm.address)
+
+
+async def get_address(message: types.Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await message.answer("Введите дату доставки (в формате ДД-ММ):")
+    await state.set_state(OrderForm.delivery_date)
+
+
+async def get_date(message: types.Message, state: FSMContext):
+    try:
+        current_year = datetime.now().year
+
+        input_text = message.text.strip()
+        full_date_str = f"{current_year}-{input_text}"
+
+        delivery_date = datetime.strptime(full_date_str, "%Y-%d-%m").date()
+
+        await state.update_data(delivery_date=delivery_date)
+        await message.answer("Введите время доставки (в формате ЧЧ:ММ):")
+        await state.set_state(OrderForm.delivery_time)
+    except ValueError:
+        await message.answer("⚠️ Некорректный формат. Введите день и месяц: 01-04")
+
+
+async def get_time(message: types.Message, state: FSMContext):
+    try:
+        time = datetime.strptime(message.text, "%H:%M").time()
+        await state.update_data(delivery_time=time)
+        await message.answer("Введите номер телефона:")
+        await state.set_state(OrderForm.phone)
+    except ValueError:
+        await message.answer("Некорректный формат. Пример: 14:30")
+
+
+async def get_phone(message: types.Message, state: FSMContext, bot: Bot):
+    await state.update_data(phone=message.text)
+    data = await state.get_data()
+
+    bouquet = await Bouquet.objects.aget(id=data["bouquet_id"])
+
+    await Order.objects.acreate(
+        bouquet=bouquet,
+        customer_name=data["customer_name"],
+        telegram_username=message.from_user.username,
+        phone=data["phone"],
+        address=data["address"],
+        delivery_date=data["delivery_date"],
+        delivery_time=data["delivery_time"]
+    )
+
+    await message.answer("✅ Спасибо! Ваш заказ принят.")
+    await state.clear()
+
+
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
 
@@ -171,3 +248,9 @@ def register_handlers(dp: Dispatcher):
     ]))
     dp.callback_query.register(pagination_bouquets, F.data.startswith("next_"))
     dp.callback_query.register(pagination_bouquets, F.data.startswith("prev_"))
+    dp.callback_query.register(start_order, F.data.startswith("order_"))
+    dp.message.register(get_customer_name, OrderForm.customer_name)
+    dp.message.register(get_address, OrderForm.address)
+    dp.message.register(get_date, OrderForm.delivery_date)
+    dp.message.register(get_time, OrderForm.delivery_time)
+    dp.message.register(get_phone, OrderForm.phone)
