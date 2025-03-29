@@ -10,12 +10,14 @@ from bot_data.keyboards import (
     get_order_phone_keyboard,
     get_bouquet_keyboard,
     get_price_keyboards,
+    get_collection_keyboard
 )
 from textwrap import dedent
 from bot_admin.models import Bouquet, Order
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
+from aiogram.enums import ParseMode
 
 
 router = Router()
@@ -36,11 +38,21 @@ async def start_handler(message: types.Message):
     )
 
 
-async def consultation_handler(callback: types.CallbackQuery, bot: Bot):
-    await callback.message.edit_text(
-        "Выберите предпочитаемый вариант связи с нашим менеджером",
-        reply_markup=get_preferred_option()
-    )
+async def consultation_handler(callback: types.CallbackQuery):
+    text = "Выберите предпочитаемый вариант связи с нашим менеджером"
+    keyboard = get_preferred_option()
+    if callback.message.text:
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=keyboard,
+        )
+
+    elif callback.message.caption:
+        await callback.message.edit_caption(
+            caption=text,
+            reply_markup=keyboard,
+        )
+    await callback.answer()
 
 
 async def notify_manager(
@@ -82,7 +94,11 @@ async def contact_option(callback: types.CallbackQuery, bot: Bot):
 
         await notify_manager(bot, user, "💬 Чат")
         await callback.message.answer(
-            "Наш менеджер скоро свяжется с вами в чате 💬"
+            dedent("""\
+            Наш менеджер скоро свяжется с вами в чате 💬
+            А пока можете присмотреть что-нибудь из готовой коллекции
+            """),
+            reply_markup=get_collection_keyboard()
         )
 
     elif callback.data == "by_phone":
@@ -116,8 +132,9 @@ async def handle_contact(message: types.Message, bot: Bot, state: FSMContext):
             dedent("""\
             Спасибо! Менеджер свяжется с вами по указанному номеру,
             в течение 20 минут.
+            А пока можете присмотреть что-нибудь из готовой коллекции.
             """),
-            reply_markup=types.ReplyKeyboardRemove()
+            reply_markup=get_collection_keyboard()
         )
 
 
@@ -156,10 +173,6 @@ async def view_collection(
 
 
 async def filter_bouquets(query, occasion, price):
-    if occasion and occasion != "no_reson":
-        print(f"Фильтрация по occasion: {occasion}")
-        query = query.filter(occasion=occasion)
-
     if price and price != 'no_matter':
         print(f"Фильтрация по цене: {price}")
         if price == "500":
@@ -194,10 +207,14 @@ async def show_bouquets(
     current_bouquet = bouquets[start_index]
 
     caption = dedent(f"""
-    Название: {current_bouquet.name}
-    Состав: {current_bouquet.flowers}
-    Описание: {current_bouquet.description}
-    Цена: {current_bouquet.price} руб.
+    <b>Название:</b> {current_bouquet.name}
+    <b>Состав:</b> {current_bouquet.flowers}
+    <b>Описание:</b> {current_bouquet.description}
+    <b>Цена:</b> {current_bouquet.price} руб.
+
+    <b>Хотите что-то еще более уникальное?
+    Подберите другой букет из нашей коллекции или
+    закажите консультацию флориста.</b>
     """)
 
     image_url = types.FSInputFile(current_bouquet.image.path)
@@ -205,6 +222,7 @@ async def show_bouquets(
     await callback.message.answer_photo(
         photo=image_url,
         caption=caption,
+        parse_mode=ParseMode.HTML,
         reply_markup=get_bouquet_keyboard(
             current_index=start_index + 1,
             total=len(bouquets),
@@ -372,9 +390,9 @@ async def process_phone(message: types.Message, state: FSMContext, bot: Bot):
     courier_chat_id = 1612767132
 
     await bot.send_message(
-                chat_id=courier_chat_id,
-                text=courier_message
-            )
+        chat_id=courier_chat_id,
+        text=courier_message
+    )
     await state.clear()
 
 
@@ -393,4 +411,5 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(handle_price, F.data.startswith("price_"))
     dp.callback_query.register(pagination_bouquets, F.data.startswith("next_"))
     dp.callback_query.register(pagination_bouquets, F.data.startswith("prev_"))
-    dp.callback_query.register(start_order_process, F.data.startswith("order_"))
+    dp.callback_query.register(
+        start_order_process, F.data.startswith("order_"))

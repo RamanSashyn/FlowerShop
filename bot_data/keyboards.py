@@ -26,10 +26,19 @@ def get_start_keyboard():
     ])
 
 
+def get_collection_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📷 Посмотреть коллекцию",
+        callback_data="view_collection"
+    )
+    return builder.as_markup()
+
+
 def get_preferred_option():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="📞 По телефону", 
+            text="📞 По телефону",
             callback_data="by_phone"
         )],
         [InlineKeyboardButton(
@@ -92,16 +101,11 @@ def get_theme_bouquet():
             callback_data="occasion_school"
         ),
         types.InlineKeyboardButton(
-            text="🌹 Без повода",
-            callback_data="occasion_no_reson"
-        )
-    )
-    builder.row(
-        types.InlineKeyboardButton(
             text="✏️ Другой повод",
             callback_data="occasion_custom"
         )
     )
+
     return builder.as_markup()
 
 
@@ -140,7 +144,15 @@ def get_bouquet_keyboard(
         callback_data=next_data
     )
 
-    builder.adjust(3)
+    builder.button(
+        text="💬 Заказать консультацию",
+        callback_data="consultation"
+    )
+    builder.button(
+        text="📷 посмотреть всю коллекцию",
+        callback_data="view_collection"
+    )
+    builder.adjust(3, 1, 1)
     return builder.as_markup()
 
 
