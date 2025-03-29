@@ -7,6 +7,7 @@ django.setup()
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
+from bot_data.handlers import router
 
 from dotenv import load_dotenv
 from textwrap import dedent
@@ -19,6 +20,7 @@ from bot_data.handlers import register_handlers
 
 bot = Bot(token=os.environ['TG_BOT_TOKEN'])
 dispatcher = Dispatcher()
+dispatcher.include_router(router)
 
 
 async def set_menu_commands(bot: Bot):
