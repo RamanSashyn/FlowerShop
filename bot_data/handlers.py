@@ -1,6 +1,6 @@
 from aiogram import Bot, types, Dispatcher, F, Router
 from aiogram.filters import Command
-from bot_admin.models import ConsultationRequest
+from bot_admin.models import ConsultationRequest, Bouquet, Order
 from bot_data.keyboards import (
     get_start_keyboard,
     get_consultation_keyboard,
@@ -13,7 +13,6 @@ from bot_data.keyboards import (
     get_collection_keyboard
 )
 from textwrap import dedent
-from bot_admin.models import Bouquet, Order
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
@@ -154,7 +153,6 @@ async def handle_price(callback: types.CallbackQuery):
     else:
         price = parts[1]
         occasion = "_".join(parts[2:]) if len(parts) > 2 else None
-    print(f"Price: {price}, Occasion: {occasion}")
     await show_bouquets(
         callback,
         occasion=occasion,
@@ -174,7 +172,6 @@ async def view_collection(
 
 async def filter_bouquets(query, occasion, price):
     if price and price != 'no_matter':
-        print(f"Фильтрация по цене: {price}")
         if price == "500":
             query = query.filter(price__lte=500)
         elif price == "1000":
@@ -197,10 +194,11 @@ async def show_bouquets(
     query = await filter_bouquets(query, occasion, price)
 
     bouquets = [b async for b in query]
-    print(f"Найдено букетов: {len(bouquets)}")
 
     if not bouquets:
-        await callback.message.answer("Нет доступных букетов по заданным критериям.")
+        await callback.message.answer(
+            "Нет доступных букетов по заданным критериям."
+        )
         return
 
     start_index = max(0, min(start_index, len(bouquets) - 1))
@@ -224,6 +222,7 @@ async def show_bouquets(
         caption=caption,
         parse_mode=ParseMode.HTML,
         reply_markup=get_bouquet_keyboard(
+            bouquet_id=current_bouquet.id,
             current_index=start_index + 1,
             total=len(bouquets),
             occasion=occasion,
@@ -250,16 +249,16 @@ async def pagination_bouquets(callback: types.CallbackQuery):
             occasion = "_".join(parts[3:]) if len(parts) > 3 else None
 
     query = Bouquet.objects.all()
-    print(f"Полученные значения - Occasion: {occasion}, Price: {price}")
 
     query = await filter_bouquets(query, occasion, price)
 
     bouquets = [b async for b in query]
     total = len(bouquets)
-    print(f"Найдено букетов: {total}")
 
     if total == 0:
-        await callback.message.answer("Нет доступных букетов по заданным критериям.")
+        await callback.message.answer(
+            "Нет доступных букетов по заданным критериям."
+        )
         return
 
     current_position = current_index - 1
@@ -276,8 +275,6 @@ async def pagination_bouquets(callback: types.CallbackQuery):
         price=price,
         start_index=new_position
     )
-    print(
-        f"Action: {action}, Current Index: {current_index}, New Position: {new_position}, Total Bouquets: {total}")
     await callback.answer()
 
 
@@ -291,7 +288,10 @@ async def get_price(callback: types.CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("order_"))
-async def start_order_process(callback: types.CallbackQuery, state: FSMContext):
+async def start_order_process(
+    callback: types.CallbackQuery,
+    state: FSMContext
+):
     bouquet_id = int(callback.data.split("_")[1])
     bouquet = await Bouquet.objects.aget(id=bouquet_id)
     await state.update_data(
@@ -322,14 +322,18 @@ async def process_date(message: types.Message, state: FSMContext):
     try:
         delivery_date = datetime.strptime(message.text, "%d.%m.%Y").date()
         if delivery_date < datetime.now().date():
-            await message.answer("Дата не может быть в прошлом. Введите корректную дату:")
+            await message.answer(
+                "Дата не может быть в прошлом. Введите корректную дату:"
+            )
             return
 
         await state.update_data(delivery_date=delivery_date)
         await message.answer("Введите время доставки (в формате ЧЧ:ММ):")
         await state.set_state(OrderStates.GET_TIME)
     except ValueError:
-        await message.answer("Неверный формат даты. Введите дату в формате ДД.ММ.ГГГГ:")
+        await message.answer(
+            "Неверный формат даты. Введите дату в формате ДД.ММ.ГГГГ:"
+        )
 
 
 @router.message(OrderStates.GET_TIME)
@@ -344,7 +348,9 @@ async def process_time(message: types.Message, state: FSMContext):
         )
         await state.set_state(OrderStates.GET_PHONE)
     except ValueError:
-        await message.answer("Неверный формат времени. Введите время в формате ЧЧ:ММ:")
+        await message.answer(
+            "Неверный формат времени. Введите время в формате ЧЧ:ММ:"
+        )
 
 
 @router.message(OrderStates.GET_PHONE, F.contact)
@@ -393,6 +399,7 @@ async def process_phone(message: types.Message, state: FSMContext, bot: Bot):
         chat_id=courier_chat_id,
         text=courier_message
     )
+
     await state.clear()
 
 

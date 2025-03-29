@@ -11,7 +11,7 @@ class BouquetAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("customer_name", "telegram_username", "phone", "delivery_date", "status")
+    list_display = ("customer_name", "telegram_username", "phone", "bouquet", "delivery_date", "status")
     search_fields = ("customer_name", "telegram_username", "address")
     list_filter = ("status", "delivery_date")
     readonly_fields = ("created_at",)

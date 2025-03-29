@@ -1,5 +1,5 @@
 from aiogram.types import (
-    InlineKeyboardMarkup, 
+    InlineKeyboardMarkup,
     InlineKeyboardButton,
     ReplyKeyboardMarkup,
     KeyboardButton
@@ -12,7 +12,7 @@ from aiogram import types
 def get_start_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="💬 Консультация", 
+            text="💬 Консультация",
             callback_data="consultation"
         )],
         [InlineKeyboardButton(
@@ -97,7 +97,7 @@ def get_theme_bouquet():
     )
     builder.row(
         types.InlineKeyboardButton(
-            text="🏫 В школу", 
+            text="🏫 В школу",
             callback_data="occasion_school"
         ),
         types.InlineKeyboardButton(
@@ -110,11 +110,13 @@ def get_theme_bouquet():
 
 
 def get_bouquet_keyboard(
+        bouquet_id: int,
         current_index: int,
         total: int,
         occasion: str = None,
         price: str = None
 ):
+
     builder = InlineKeyboardBuilder()
 
     prev_data = f"prev_{current_index}"
@@ -137,7 +139,7 @@ def get_bouquet_keyboard(
         callback_data=prev_data
     )
 
-    builder.button(text="🛒 Заказать", callback_data=f"order_{current_index}")
+    builder.button(text="🛒 Заказать", callback_data=f"order_{bouquet_id}")
 
     builder.button(
         text="Вперед ▶️",
