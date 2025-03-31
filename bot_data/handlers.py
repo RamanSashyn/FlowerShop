@@ -1,22 +1,25 @@
-from aiogram import Bot, types, Dispatcher, F, Router
-from aiogram.filters import Command
-from bot_admin.models import ConsultationRequest, Bouquet, Order
-from bot_data.keyboards import (
-    get_start_keyboard,
-    get_consultation_keyboard,
-    get_theme_bouquet,
-    get_preferred_option,
-    get_consultation_phone_keyboard,
-    get_order_phone_keyboard,
-    get_bouquet_keyboard,
-    get_price_keyboards,
-    get_collection_keyboard
-)
+from datetime import datetime
 from textwrap import dedent
+
+from aiogram import Bot, Dispatcher, F, Router, types
+from aiogram.enums import ParseMode
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from datetime import datetime
-from aiogram.enums import ParseMode
+from django.db.models import Q
+
+from bot_admin.models import Bouquet, ConsultationRequest, Order
+from bot_data.keyboards import (
+    get_bouquet_keyboard,
+    get_collection_keyboard,
+    get_consultation_phone_keyboard,
+    get_consultation_keyboard,
+    get_order_phone_keyboard,
+    get_preferred_option,
+    get_price_keyboards,
+    get_start_keyboard,
+    get_theme_bouquet
+)
 
 
 router = Router()
@@ -37,7 +40,7 @@ async def start_handler(message: types.Message):
     )
 
 
-async def consultation_handler(callback: types.CallbackQuery):
+async def show_consultation_options(callback: types.CallbackQuery):
     text = "Выберите предпочитаемый вариант связи с нашим менеджером"
     keyboard = get_preferred_option()
     if callback.message.text:
@@ -80,7 +83,7 @@ async def notify_manager(
     )
 
 
-async def contact_option(callback: types.CallbackQuery, bot: Bot):
+async def handle_contact_preference(callback: types.CallbackQuery, bot: Bot):
     user = callback.from_user
 
     if callback.data == "in_chat":
@@ -109,7 +112,7 @@ async def contact_option(callback: types.CallbackQuery, bot: Bot):
     await callback.answer()
 
 
-async def handle_contact(message: types.Message, bot: Bot, state: FSMContext):
+async def get_phone(message: types.Message, bot: Bot, state: FSMContext):
     current_state = await state.get_state()
     if current_state == OrderStates.GET_PHONE.state:
         await process_phone(message, state, bot)
@@ -137,7 +140,7 @@ async def handle_contact(message: types.Message, bot: Bot, state: FSMContext):
         )
 
 
-async def order_bouquet(callback: types.CallbackQuery):
+async def show_bouquet_occasions(callback: types.CallbackQuery):
     await callback.message.edit_text(
         "Выберите повод для букета:",
         reply_markup=get_theme_bouquet()
@@ -153,11 +156,7 @@ async def handle_price(callback: types.CallbackQuery):
     else:
         price = parts[1]
         occasion = "_".join(parts[2:]) if len(parts) > 2 else None
-    await show_bouquets(
-        callback,
-        occasion=occasion,
-        price=None if price == 'no_matter' else price
-    )
+    await show_filtered_bouquets(callback, occasion=occasion, price=price)
 
 
 async def view_collection(
@@ -166,12 +165,20 @@ async def view_collection(
         price: str = None,
         start_index: int = 0
 ):
-    await show_bouquets(callback, occasion, price, start_index)
+    await show_filtered_bouquets(callback, occasion, price, start_index)
     await callback.answer()
 
 
 async def filter_bouquets(query, occasion, price):
-    if price and price != 'no_matter':
+    if occasion and occasion != 'occasion_custom':
+        query = query.filter(
+            Q(occasion=occasion) | Q(occasion="occasion_custom")
+        )
+
+    elif occasion == "occasion_custom":
+        query = query.filter(occasion="occasion_custom")
+
+    if price is not None and price != 'no_matter':
         if price == "500":
             query = query.filter(price__lte=500)
         elif price == "1000":
@@ -184,7 +191,7 @@ async def filter_bouquets(query, occasion, price):
     return query
 
 
-async def show_bouquets(
+async def show_filtered_bouquets(
         callback: types.CallbackQuery,
         occasion: str = None,
         price: str = None,
@@ -197,7 +204,12 @@ async def show_bouquets(
 
     if not bouquets:
         await callback.message.answer(
-            "Нет доступных букетов по заданным критериям."
+            dedent("""\
+                Нет доступных букетов по заданным критериям.
+                Попробуйте другие критерии или посмотрите всю коллекцию.
+                Так же вы можете обратиться за помощью к нашему консультанту.
+            """),
+            reply_markup=get_start_keyboard()
         )
         return
 
@@ -232,7 +244,7 @@ async def show_bouquets(
     await callback.answer()
 
 
-async def pagination_bouquets(callback: types.CallbackQuery):
+async def navigate_bouquet_catalog(callback: types.CallbackQuery):
     parts = callback.data.split("_")
     action = parts[0]
     current_index = int(parts[1])
@@ -255,12 +267,6 @@ async def pagination_bouquets(callback: types.CallbackQuery):
     bouquets = [b async for b in query]
     total = len(bouquets)
 
-    if total == 0:
-        await callback.message.answer(
-            "Нет доступных букетов по заданным критериям."
-        )
-        return
-
     current_position = current_index - 1
 
     if action == "prev":
@@ -269,7 +275,7 @@ async def pagination_bouquets(callback: types.CallbackQuery):
         new_position = (current_position + 1) % total
 
     await callback.message.delete()
-    await show_bouquets(
+    await show_filtered_bouquets(
         callback,
         occasion=occasion,
         price=price,
@@ -298,7 +304,7 @@ async def start_order_process(
         bouquet_id=bouquet.id,
         bouquet_name=bouquet.name
     )
-    await callback.message.answer("Пожалуйста, укажите ваше имя")
+    await callback.message.answer("Пожалуйста, напишите ваше имя")
     await state.set_state(OrderStates.GET_NAME)
     await callback.answer()
 
@@ -368,55 +374,86 @@ async def process_phone(message: types.Message, state: FSMContext, bot: Bot):
         status="в обработке"
     )
 
-    await message.answer(dedent(f"""\
+    await send_order_confirmation(message, bouquet, data, order)
+    await notify_courier_about_order(bot, bouquet, data, message, order)
+
+    await state.clear()
+
+
+async def send_order_confirmation(
+    message: types.Message,
+    bouquet: Bouquet,
+    order_data: dict,
+    order: Order
+):
+    """Отправляет клиенту подтверждение заказа"""
+    confirmation_text = dedent(f"""\
         ✅ Ваш заказ успешно оформлен!
         Букет: {bouquet.name}
         Цена: {bouquet.price} руб.
-        Имя: {data['client_name']}
-        Адрес: {data['address']}
-        Дата: {data['delivery_date'].strftime('%d.%m.%Y')}
-        Время: {data['delivery_time'].strftime('%H:%M')}
+        Имя: {order_data['client_name']}
+        Адрес: {order_data['address']}
+        Дата: {order_data['delivery_date'].strftime('%d.%m.%Y')}
+        Время: {order_data['delivery_time'].strftime('%H:%M')}
         Телефон: {message.contact.phone_number}
-        """),
+        Номер заказа: {order.id}
+    """)
+
+    await message.answer(
+        confirmation_text,
         reply_markup=types.ReplyKeyboardRemove()
     )
 
-    courier_message = (dedent(f"""\
+
+async def notify_courier_about_order(
+    bot: Bot,
+    bouquet: Bouquet,
+    order_data: dict,
+    message: types.Message,
+    order: Order
+):
+    """Отправляет уведомление курьеру о новом заказе"""
+    courier_chat_id = 1612767132
+    courier_message = dedent(f"""\
         НОВЫЙ ЗАКАЗ
         Букет: {bouquet.name}
         Цена: {bouquet.price} руб.
-        Клиент: {data['client_name']} (@{message.from_user.username})
+        Клиент: {order_data['client_name']} (@{message.from_user.username})
         Телефон: {message.contact.phone_number}
-        Адрес: {data['address']}
-        Дата: {data['delivery_date'].strftime('%d.%m.%Y')}
-        Время: {data['delivery_time'].strftime('%H:%M')}
+        Адрес: {order_data['address']}
+        Дата: {order_data['delivery_date'].strftime('%d.%m.%Y')}
+        Время: {order_data['delivery_time'].strftime('%H:%M')}
         Номер заказа: {order.id}
-    """))
-
-    courier_chat_id = 1612767132
+    """)
 
     await bot.send_message(
         chat_id=courier_chat_id,
         text=courier_message
     )
 
-    await state.clear()
-
 
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_handler, Command("start"))
 
-    dp.callback_query.register(consultation_handler, F.data == "consultation")
-    dp.message.register(handle_contact, F.contact)
-    dp.callback_query.register(contact_option, F.data.in_([
+    dp.callback_query.register(
+        show_consultation_options, F.data == "consultation"
+    )
+    dp.message.register(get_phone, F.contact)
+    dp.callback_query.register(handle_contact_preference, F.data.in_([
         "in_chat",
         "by_phone"
     ]))
     dp.callback_query.register(view_collection, F.data == "view_collection")
-    dp.callback_query.register(order_bouquet, F.data == "order_bouquet")
+    dp.callback_query.register(
+        show_bouquet_occasions, F.data == "order_bouquet"
+    )
     dp.callback_query.register(get_price, F.data.startswith("occasion_"))
     dp.callback_query.register(handle_price, F.data.startswith("price_"))
-    dp.callback_query.register(pagination_bouquets, F.data.startswith("next_"))
-    dp.callback_query.register(pagination_bouquets, F.data.startswith("prev_"))
+    dp.callback_query.register(
+        navigate_bouquet_catalog, F.data.startswith("next_")
+    )
+    dp.callback_query.register(
+        navigate_bouquet_catalog, F.data.startswith("prev_")
+    )
     dp.callback_query.register(
         start_order_process, F.data.startswith("order_"))
