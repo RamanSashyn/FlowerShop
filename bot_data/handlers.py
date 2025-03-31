@@ -393,7 +393,7 @@ async def process_phone(message: types.Message, state: FSMContext, bot: Bot):
         Номер заказа: {order.id}
     """))
 
-    courier_chat_id = -4743309026
+    courier_chat_id = 1612767132
 
     await bot.send_message(
         chat_id=courier_chat_id,

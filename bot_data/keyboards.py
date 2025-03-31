@@ -1,12 +1,11 @@
-from aiogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    ReplyKeyboardMarkup,
-    KeyboardButton
-)
-
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup
+)
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def get_start_keyboard():
