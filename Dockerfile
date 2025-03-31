@@ -21,5 +21,5 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8080
 
 # Команда для запуска вашего приложения
-CMD gunicorn FlowerShop.wsgi:application --bind 0.0.0.0:$PORT
+CMD sh -c "gunicorn FlowerShop.wsgi:application --bind 0.0.0.0:$PORT & python run_bot.py"
 
