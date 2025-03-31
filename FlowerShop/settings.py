@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-^jaihfz!3e9rm#mw-+%1gr4t&f55e20dzjdg&o@dbee_$ss%=q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['flowershop-production.up.railway.app']
 
 # Application definition
 
@@ -129,4 +129,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://flowershop-production.up.railway.app",
+]
+
 
