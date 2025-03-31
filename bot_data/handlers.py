@@ -1,5 +1,6 @@
 from datetime import datetime
 from textwrap import dedent
+import os
 
 from aiogram import Bot, Dispatcher, F, Router, types
 from aiogram.enums import ParseMode
@@ -63,7 +64,10 @@ async def notify_manager(
         contact_method: str,
         phone_number: str = None
 ):
-    manager_chat_id = -4743309026
+    manager_chat_id = os.getenv("TG_CONSULTANT_CHAT_ID")
+    if not manager_chat_id:
+        print('Ошибка: Не указан чат-id коньсультанта.')
+        return
 
     message_text = dedent(f"""\
         Новая заявка на консультацию!
@@ -386,7 +390,6 @@ async def send_order_confirmation(
     order_data: dict,
     order: Order
 ):
-    """Отправляет клиенту подтверждение заказа"""
     confirmation_text = dedent(f"""\
         ✅ Ваш заказ успешно оформлен!
         Букет: {bouquet.name}
@@ -412,8 +415,11 @@ async def notify_courier_about_order(
     message: types.Message,
     order: Order
 ):
-    """Отправляет уведомление курьеру о новом заказе"""
-    courier_chat_id = 1612767132
+    courier_chat_id = os.getenv("TG_COURIER_CHAT_ID")
+    if not courier_chat_id:
+        print('Ошибка: Не указан чат-id курьера.')
+        return
+
     courier_message = dedent(f"""\
         НОВЫЙ ЗАКАЗ
         Букет: {bouquet.name}
